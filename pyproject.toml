@@ -7,7 +7,15 @@ authors = [
     { name = "David Mayo", email = "dcmayo@moreheadstate.edu" }
 ]
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "anywidget>=0.9.13",
+    "dash>=2.9.3",
+    "flask>=3.1.0",
+    "matplotlib>=3.10.0",
+    "pandas>=2.2.3",
+    "plotly>=6.0.0",
+    "watchdog>=6.0.0",
+]
 
 [project.scripts]
 live-graph = "live_graph:main"
