@@ -15,7 +15,7 @@ CSV_FILE_PATH = Path("sample_data.csv").expanduser().resolve()
 # OTHER STUFF
 MAX_DATA_POINTS = 1000
 SHORT_WINDOW_SECONDS = 60
-LONG_WINDOW_SECONDS = 600
+LONG_WINDOW_SECONDS = 300
 REFRESH_INTERVAL = 200  # in milliseconds
 
 
@@ -25,9 +25,9 @@ app = dash.Dash(__name__)
 # Define layout
 app.layout = html.Div(
     [
-        dcc.Graph(id="live-graph-all"),
         dcc.Graph(id="live-graph-short-window"),
         dcc.Graph(id="live-graph-long-window"),
+        dcc.Graph(id="live-graph-all"),
         dcc.Interval(
             id="interval-component",
             interval=REFRESH_INTERVAL,
@@ -72,8 +72,8 @@ def update_graphs(n):
     if len(df_long_window) > MAX_DATA_POINTS:
         df_long_window = df_long_window.iloc[:: math.ceil(len(df_long_window) / MAX_DATA_POINTS)]
 
-    df_short_window: pd.DataFrame = df_short_window
-    df_last_600_seconds: pd.DataFrame = df_long_window
+    # df_short_window: pd.DataFrame = df_short_window
+    # df_last_600_seconds: pd.DataFrame = df_long_window
 
     # print(f"{len(df_short_window)=} {len(df_last_600_seconds)=} {len(df_all)=}")
     
@@ -94,7 +94,7 @@ def update_graphs(n):
         },
     }
 
-    fig_60_seconds = {
+    fig_short_window = {
         "data": [
             {
                 "x": df_short_window[X_COLUMN],
@@ -104,13 +104,13 @@ def update_graphs(n):
             }
         ],
         "layout": {
-            "title": "Live CSV Data (Last 60 seconds)",
+            "title": f"Live CSV Data (Last {SHORT_WINDOW_SECONDS:,} seconds)",
             "xaxis": {"title": "Time"},
             "yaxis": {"title": "Value"},
         },
     }
 
-    fig_600_seconds = {
+    fig_long_window = {
         "data": [
             {
                 "x": df_long_window[X_COLUMN],
@@ -120,7 +120,7 @@ def update_graphs(n):
             }
         ],
         "layout": {
-            "title": "Live CSV Data (Last 600 seconds)",
+            "title": f"Live CSV Data (Last {LONG_WINDOW_SECONDS:,} seconds)",
             "xaxis": {"title": X_COLUMN},
             "yaxis": {"title": Y_COLUMN},
         },
@@ -128,8 +128,8 @@ def update_graphs(n):
 
     return (
         fig_all,
-        fig_60_seconds,
-        fig_600_seconds,
+        fig_short_window,
+        fig_long_window,
     )
 
 
