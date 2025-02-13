@@ -1,13 +1,23 @@
+import math
+from pathlib import Path
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
 import pandas as pd
 import time
 
-# CSV file path
-CSV_FILE_PATH = "sample_data.csv"
-# Number of lines to tail
-TAIL_LINES = 1000
+
+# CSV STUFF:
+X_COLUMN = "timestamp"
+Y_COLUMN = "value"
+CSV_FILE_PATH = Path("sample_data.csv").expanduser().resolve()
+
+# OTHER STUFF
+MAX_DATA_POINTS = 1000
+SHORT_WINDOW_SECONDS = 60
+LONG_WINDOW_SECONDS = 600
+REFRESH_INTERVAL = 200  # in milliseconds
+
 
 # Initialize Dash app
 app = dash.Dash(__name__)
@@ -15,53 +25,115 @@ app = dash.Dash(__name__)
 # Define layout
 app.layout = html.Div(
     [
-        dcc.Graph(id="live-graph"),
+        dcc.Graph(id="live-graph-all"),
+        dcc.Graph(id="live-graph-short-window"),
+        dcc.Graph(id="live-graph-long-window"),
         dcc.Interval(
             id="interval-component",
-            interval=1 * 100,  # in milliseconds
+            interval=REFRESH_INTERVAL,
             n_intervals=0,
         ),
     ],
 )
 
 
-# Callback to update graph
+# Callback to update graphs
 @app.callback(
-    Output("live-graph", "figure"), Input("interval-component", "n_intervals")
+    Output("live-graph-all", "figure"), 
+    Output("live-graph-short-window", "figure"), 
+    Output("live-graph-long-window", "figure"),
+    Input("interval-component", "n_intervals")
 )
-def update_graph(n):
+def update_graphs(n):
     # Read the CSV file
     try:
-        df = pd.read_csv(CSV_FILE_PATH)
+        df = pd.read_csv(
+            CSV_FILE_PATH,
+            parse_dates=[
+                X_COLUMN,
+            ],
+        )
     except FileNotFoundError:
-        return {"data": [], "layout": {"title": "CSV file not found"}}
+        return (
+            {"data": [], "layout": {"title": "CSV file not found"}},
+            {"data": [], "layout": {"title": "CSV file not found"}},
+            {"data": [], "layout": {"title": "CSV file not found"}}
+        )
 
-    # Tail the last few lines
-    df_tail = df.tail(TAIL_LINES)
+    df_all = df
+    df_short_window = df[df[X_COLUMN] > df[X_COLUMN].max() - pd.Timedelta(seconds=SHORT_WINDOW_SECONDS)]
+    df_long_window = df[df[X_COLUMN] > df[X_COLUMN].max() - pd.Timedelta(seconds=LONG_WINDOW_SECONDS)]
 
-    # Create the figure
-    fig = {
+    # If the data is too long, take equally spaced subsets
+    if len(df_all) > MAX_DATA_POINTS:
+        df_all = df_all.iloc[:: math.ceil(len(df_all) / MAX_DATA_POINTS)]
+    if len(df_short_window) > MAX_DATA_POINTS:
+        df_short_window = df_short_window.iloc[:: math.ceil(len(df_short_window) / MAX_DATA_POINTS)]
+    if len(df_long_window) > MAX_DATA_POINTS:
+        df_long_window = df_long_window.iloc[:: math.ceil(len(df_long_window) / MAX_DATA_POINTS)]
+
+    df_short_window: pd.DataFrame = df_short_window
+    df_last_600_seconds: pd.DataFrame = df_long_window
+
+    # print(f"{len(df_short_window)=} {len(df_last_600_seconds)=} {len(df_all)=}")
+    
+    # Create the figures
+    fig_all = {
         "data": [
             {
-                # "x": df_tail.index,
-                "x": df_tail[
-                    df_tail.columns[0]
-                ],
-                "y": df_tail[
-                    df_tail.columns[2]
-                ],
+                "x": df_all[X_COLUMN],
+                "y": df_all[Y_COLUMN],
                 "type": "line",
                 "name": "Data",
             }
         ],
         "layout": {
-            "title": "Live CSV Data",
+            "title": "Live CSV Data (all)",
             "xaxis": {"title": "Time"},
             "yaxis": {"title": "Value"},
         },
     }
-    return fig
+
+    fig_60_seconds = {
+        "data": [
+            {
+                "x": df_short_window[X_COLUMN],
+                "y": df_short_window[Y_COLUMN],
+                "type": "line",
+                "name": "Data",
+            }
+        ],
+        "layout": {
+            "title": "Live CSV Data (Last 60 seconds)",
+            "xaxis": {"title": "Time"},
+            "yaxis": {"title": "Value"},
+        },
+    }
+
+    fig_600_seconds = {
+        "data": [
+            {
+                "x": df_long_window[X_COLUMN],
+                "y": df_long_window[Y_COLUMN],
+                "type": "line",
+                "name": "Data",
+            }
+        ],
+        "layout": {
+            "title": "Live CSV Data (Last 600 seconds)",
+            "xaxis": {"title": "Time"},
+            "yaxis": {"title": "Value"},
+        },
+    }
+
+    return (
+        fig_all,
+        fig_60_seconds,
+        fig_600_seconds,
+    )
 
 
 if __name__ == "__main__":
+    print(f"Tailing {CSV_FILE_PATH}")
     app.run_server(debug=True, port=5000)
+    # app.run()
