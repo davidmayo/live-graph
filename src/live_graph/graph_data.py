@@ -121,8 +121,8 @@ def update_graphs(n):
         ],
         "layout": {
             "title": "Live CSV Data (Last 600 seconds)",
-            "xaxis": {"title": "Time"},
-            "yaxis": {"title": "Value"},
+            "xaxis": {"title": X_COLUMN},
+            "yaxis": {"title": Y_COLUMN},
         },
     }
 
@@ -136,4 +136,3 @@ def update_graphs(n):
 if __name__ == "__main__":
     print(f"Tailing {CSV_FILE_PATH}")
     app.run_server(debug=True, port=5000)
-    # app.run()
